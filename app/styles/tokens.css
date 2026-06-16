@@ -1,0 +1,81 @@
+/* 蓝色护眼配色体系 — from deliverables/tokens.css */
+
+:root {
+  --bg: #e9f1fc;
+  --bg2: #dae7f7;
+  --bg3: #cfe0f4;
+  --card: #ffffff;
+
+  --ink: #15233e;
+  --ink2: #43526f;
+  --ink3: #8593aa;
+
+  --accent: #588ce3;
+  --accent2: #4a63c9;
+  --green: #2ea27d;
+  --amber: #e8932f;
+  --danger: #d64545;
+
+  --blue-soft: #96c7f3;
+  --blue-faint: #cddefc;
+  --blue-wash: #e7f1fd;
+
+  --navy: #15243f;
+  --navy-ink: #eaf1fd;
+
+  --shadow: 0 6px 22px -12px rgba(20, 40, 90, 0.3);
+  --r: 20px;
+
+  --font-ui: "Instrument Sans", "Noto Sans SC", system-ui, sans-serif;
+  --font-display: "Instrument Serif", "Noto Serif SC", serif;
+}
+
+[data-theme="dark"],
+.theme-dark {
+  --bg: #0e1626;
+  --bg2: #16213a;
+  --bg3: #212f4d;
+  --card: #192741;
+
+  --ink: #e9f0fb;
+  --ink2: #aebcd6;
+  --ink3: #71819f;
+
+  --accent: #7eb0f4;
+  --accent2: #8aa0ee;
+  --green: #3fc295;
+  --amber: #f4bd4f;
+  --danger: #f07171;
+
+  --blue-soft: #96c7f3;
+  --blue-faint: rgba(126, 176, 244, 0.2);
+  --blue-wash: rgba(126, 176, 244, 0.1);
+
+  --navy: #070d18;
+  --navy-ink: #eaf1fd;
+
+  --shadow: 0 8px 26px -14px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1626;
+    --bg2: #16213a;
+    --bg3: #212f4d;
+    --card: #192741;
+    --ink: #e9f0fb;
+    --ink2: #aebcd6;
+    --ink3: #71819f;
+    --accent: #7eb0f4;
+    --accent2: #8aa0ee;
+    --green: #3fc295;
+    --amber: #f4bd4f;
+    --danger: #f07171;
+    --blue-soft: #96c7f3;
+    --blue-faint: rgba(126, 176, 244, 0.2);
+    --blue-wash: rgba(126, 176, 244, 0.1);
+    --navy: #070d18;
+    --navy-ink: #eaf1fd;
+    --shadow: 0 8px 26px -14px rgba(0, 0, 0, 0.55);
+  }
+}
