@@ -1,0 +1,152 @@
+schema_version: 1
+module_pack_id: fip-initial-classification-rules
+version: 1
+description: >
+  Initial editable classification rule modules. The engine interprets this
+  configuration and must not hard-code institution, merchant, or treatment
+  behavior.
+
+operators:
+  - equals
+  - not_equals
+  - in
+  - contains
+  - regex
+  - amount_between
+  - date_between
+  - is_missing
+  - is_present
+
+treatments:
+  - spending
+  - refund_offset
+  - labor_income
+  - financial_income
+  - old_item_recovery
+  - credit_card_payment
+  - savings_transfer
+  - cash_consolidation
+  - liquidity_movement
+  - loan_proceeds
+  - loan_repayment
+  - exclude
+  - needs_review
+
+cashflow_layers:
+  - income
+  - spending
+  - savings
+  - internal_flow
+  - asset_recovery
+  - financing
+  - excluded
+  - review
+
+modules:
+  - module_id: core.credit_card_payments
+    version: 1
+    enabled: true
+    priority_base: 9000
+    rules:
+      - rule_id: core-credit-card-payment-generic-v1
+        priority: 100
+        match:
+          all:
+            - field: account_type
+              operator: equals
+              value: credit
+            - field: description
+              operator: regex
+              value: "(PAYMENT|AUTOPAY|EPAYMENT|THANK YOU|ONLINE PAYMENT)"
+        actions:
+          category: Internal Transfer
+          subcategory: Credit Card Payment
+          treatment: credit_card_payment
+          cashflow_layer: internal_flow
+          confidence: 0.92
+
+  - module_id: core.refunds
+    version: 1
+    enabled: true
+    priority_base: 8500
+    rules:
+      - rule_id: core-merchant-refund-v1
+        priority: 100
+        match:
+          any:
+            - field: description
+              operator: regex
+              value: "(REFUND|RETURN|MERCHANT CREDIT)"
+            - field: raw_category_detailed
+              operator: contains
+              value: refund
+        actions:
+          category: Refund
+          subcategory: Merchant Refund
+          treatment: refund_offset
+          cashflow_layer: spending
+          confidence: 0.90
+
+  - module_id: core.rewards_and_credits
+    version: 1
+    enabled: true
+    priority_base: 8300
+    rules:
+      - rule_id: core-card-reward-or-statement-credit-v1
+        priority: 100
+        match:
+          any:
+            - field: description
+              operator: regex
+              value: "(CASH REWARD|REWARD REDEMPTION|STATEMENT CREDIT|CREDIT REWARD|CASH REDEMPTION)"
+        actions:
+          category: Financial Income
+          subcategory: Card Benefit
+          treatment: financial_income
+          cashflow_layer: income
+          confidence: 0.88
+
+  - module_id: core.income
+    version: 1
+    enabled: true
+    priority_base: 8000
+    rules:
+      - rule_id: core-payroll-income-v1
+        priority: 100
+        match:
+          any:
+            - field: description
+              operator: regex
+              value: "(PAYROLL|DIRECT DEP|SALARY|PAYCHECK)"
+        actions:
+          category: Income
+          subcategory: Payroll
+          treatment: labor_income
+          cashflow_layer: income
+          confidence: 0.85
+
+  - module_id: core.savings
+    version: 1
+    enabled: true
+    priority_base: 7600
+    rules:
+      - rule_id: core-retirement-or-hsa-contribution-v1
+        priority: 100
+        match:
+          any:
+            - field: description
+              operator: regex
+              value: "(401K|HSA|IRA|ROTH|BROKERAGE CONTRIBUTION)"
+        actions:
+          category: Savings
+          subcategory: Contribution
+          treatment: savings_transfer
+          cashflow_layer: savings
+          confidence: 0.82
+
+  - module_id: user.overrides
+    version: 1
+    enabled: true
+    priority_base: 20000
+    rules: []
+

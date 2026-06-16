@@ -1,0 +1,245 @@
+schema_version: 1
+module_id: fip-risk-monitoring
+version: 1
+description: >
+  Config-driven risk rules for the independent FIP finance module. Thresholds
+  and account scopes are configurable. The evaluator must not hard-code bank,
+  card, or merchant behavior.
+
+runtime:
+  evaluation_frequency: monthly
+  default_currency: USD
+  rule_order: priority_desc
+  missing_data_policy: emit_data_quality_alert
+
+inputs:
+  monthly_metrics: monthly_metrics
+  monthly_spending: monthly_spending
+  credit_card_monthly: credit_card_monthly
+  accounts: accounts
+  data_quality: monthly_run_data_quality
+
+severity_levels:
+  info:
+    rank: 1
+  warning:
+    rank: 2
+  high:
+    rank: 3
+  critical:
+    rank: 4
+
+rule_modules:
+  - module_id: liquidity
+    enabled: true
+    priority_base: 9000
+  - module_id: spending_anomaly
+    enabled: true
+    priority_base: 8000
+  - module_id: credit_cards
+    enabled: true
+    priority_base: 7000
+  - module_id: classification_quality
+    enabled: true
+    priority_base: 6000
+  - module_id: sync_quality
+    enabled: true
+    priority_base: 5000
+
+rules:
+  - rule_id: low-cash-vs-next-card-bills-v1
+    module_id: liquidity
+    enabled: true
+    priority: 100
+    description: Net cash is below upcoming credit card statement obligations.
+    evaluate:
+      metric: accounts.net_cash
+      operator: less_than
+      compare_to:
+        aggregate: sum
+        source: credit_card_monthly
+        field: statement_balance
+        filters:
+          due_date_window_days: 45
+    severity:
+      critical_if:
+        operator: less_than_ratio
+        left: accounts.net_cash
+        right: credit_card_monthly.statement_balance_due_45d
+        ratio: 0.75
+      high_if:
+        operator: less_than_ratio
+        left: accounts.net_cash
+        right: credit_card_monthly.statement_balance_due_45d
+        ratio: 1.0
+      warning_if:
+        operator: less_than_ratio
+        left: accounts.net_cash
+        right: credit_card_monthly.statement_balance_due_45d
+        ratio: 1.15
+    alert:
+      type: low_cash
+      title: Cash may not cover upcoming card bills
+      message_template: "Net cash {net_cash} is below or close to card bills due in 45 days: {card_bills_due_45d}."
+      suggested_action: Review cash buffer and upcoming due dates.
+
+  - rule_id: net-spending-spike-v1
+    module_id: spending_anomaly
+    enabled: true
+    priority: 90
+    description: Current net spending exceeds trailing three-month average.
+    evaluate:
+      metric: monthly_spending.net_spending
+      operator: greater_than_trailing_average
+      trailing_months: 3
+      multiplier: 1.30
+      minimum_absolute_delta: 500
+    severity:
+      high_if:
+        multiplier: 1.75
+      warning_if:
+        multiplier: 1.30
+    alert:
+      type: spending_spike
+      title: Monthly spending increased sharply
+      message_template: "Net spending {current_value} is {delta_pct} above the trailing 3-month average."
+      suggested_action: Check large merchants and category breakdown.
+
+  - rule_id: category-spending-anomaly-v1
+    module_id: spending_anomaly
+    enabled: true
+    priority: 80
+    description: A configured category is materially above recent history.
+    evaluate:
+      source: monthly_spending.categories
+      operator: category_greater_than_trailing_average
+      trailing_months: 6
+      multiplier: 1.50
+      minimum_absolute_delta: 300
+      category_scope:
+        include:
+          - Shopping
+          - Travel
+          - Dining
+          - Services
+          - Entertainment
+    severity:
+      high_if:
+        multiplier: 2.00
+      warning_if:
+        multiplier: 1.50
+    alert:
+      type: category_spending_anomaly
+      title: Category spending anomaly
+      message_template: "{category} spending is {delta_pct} above its trailing 6-month average."
+      suggested_action: Review transactions in the category before closing the month.
+
+  - rule_id: missing-credit-card-payment-v1
+    module_id: credit_cards
+    enabled: true
+    priority: 95
+    description: Statement balance exists but no matching payment was found.
+    evaluate:
+      source: credit_card_monthly
+      operator: statement_balance_without_payment
+      statement_balance_minimum: 50
+      payment_match_window_days_after_due: 7
+      acceptable_payment_ratio: 0.95
+    severity:
+      critical_if:
+        days_after_due: 7
+      high_if:
+        days_after_due: 3
+      warning_if:
+        days_before_due: 5
+    alert:
+      type: missing_credit_card_payment
+      title: Possible missing credit card payment
+      message_template: "{card_name} has statement balance {statement_balance}, but matched payments are only {matched_payment_amount}."
+      suggested_action: Verify payment status in the card issuer account.
+
+  - rule_id: classification-review-rate-high-v1
+    module_id: classification_quality
+    enabled: true
+    priority: 70
+    description: Too many transactions require review or are low confidence.
+    evaluate:
+      metric: data_quality.classification_review_rate
+      operator: greater_than
+      threshold: 0.10
+      minimum_transaction_count: 50
+    severity:
+      high_if:
+        threshold: 0.25
+      warning_if:
+        threshold: 0.10
+    alert:
+      type: classification_drift
+      title: Classification review rate is high
+      message_template: "{review_rate_pct} of transactions need review this month."
+      suggested_action: Review unmatched transactions and promote repeated edits to rules.
+
+  - rule_id: large-uncategorized-amount-v1
+    module_id: classification_quality
+    enabled: true
+    priority: 65
+    description: Uncategorized or review transactions represent a material dollar amount.
+    evaluate:
+      metric: data_quality.large_uncategorized_amount
+      operator: greater_than
+      threshold: 1000
+    severity:
+      high_if:
+        threshold: 3000
+      warning_if:
+        threshold: 1000
+    alert:
+      type: large_uncategorized_amount
+      title: Large uncategorized amount
+      message_template: "Transactions needing review total {amount} this month."
+      suggested_action: Resolve high-value review transactions before trusting monthly reports.
+
+  - rule_id: sync-gap-v1
+    module_id: sync_quality
+    enabled: true
+    priority: 60
+    description: One or more active accounts have stale transaction data.
+    evaluate:
+      source: accounts
+      operator: active_account_sync_gap_greater_than
+      max_gap_days: 7
+      account_scope:
+        is_active: true
+        include_account_types:
+          - depository
+          - credit
+          - investment
+    severity:
+      high_if:
+        max_gap_days: 30
+      warning_if:
+        max_gap_days: 7
+    alert:
+      type: sync_issue
+      title: Account data may be stale
+      message_template: "{account_name} has not synced for {sync_gap_days} days."
+      suggested_action: Refresh data source or import the latest CSV before analysis.
+
+  - rule_id: missing-official-income-facts-v1
+    module_id: sync_quality
+    enabled: true
+    priority: 55
+    description: Income metrics are transaction-derived because official facts are missing.
+    evaluate:
+      metric: data_quality.official_fact_coverage.income
+      operator: less_than
+      threshold: 1.0
+    severity:
+      warning_if:
+        threshold: 1.0
+    alert:
+      type: missing_official_fact
+      title: Official income facts missing
+      message_template: "Income is currently based on transaction-derived values because official documents are incomplete."
+      suggested_action: Add W-2, paystub, 1099, or year-end statement facts for calibration.
+
