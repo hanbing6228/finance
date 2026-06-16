@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-100 text-ink min-h-screen;
+}
+
+.card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}
+
+.metric-label {
+  @apply text-xs font-medium uppercase tracking-wide text-slate-500;
+}
+
+.metric-value {
+  @apply text-2xl font-semibold text-ink;
+}

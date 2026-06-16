@@ -4,6 +4,20 @@ Finance is the standalone FIP personal finance analytics module. The MVP is
 designed as a data-package-driven system first, with a future static integration
 path into the Baohe toolbox as the `finance` module.
 
+## Web App
+
+This repository includes a deployable Next.js demo shell:
+
+```bash
+npm install
+npm run dev
+```
+
+API routes:
+
+- `GET /api/health`
+- `GET /api/dashboard?year=2025`
+
 Start here:
 
 - [FIP MVP Documentation Pack](docs/fip/README.md)
