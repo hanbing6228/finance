@@ -20,6 +20,7 @@ API routes:
 
 Start here:
 
+- [UI Prototype](ui/index.html)
 - [FIP MVP Documentation Pack](docs/fip/README.md)
 - [Product Requirements](docs/fip/prd-v1.md)
 - [Technical Design](docs/fip/technical-design-v1.md)
@@ -32,4 +33,3 @@ MVP boundaries:
 - CSV/JSON/YAML data packages are supported first.
 - Real bank authorization, payments, transfers, tax advice, and investment
   advice are out of scope until explicit approval gates are passed.
-
